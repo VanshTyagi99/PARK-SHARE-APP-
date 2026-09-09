@@ -7,7 +7,12 @@ import com.parkshare.app.ui.screens.Signup.Signupscreen
 import com.parkshare.app.ui.screens.Home.Homescreen
 import com.parkshare.app.ui.screens.Search.Searchscreen
 import com.parkshare.app.ui.screens.ParkingDetails.ParkingDetailsScreen
-
+import com.parkshare.app.ui.screens.Booking.BookingScreen
+import com.parkshare.app.ui.screens.BookingConfirmation.BookingConfirmationScreen
+import com.parkshare.app.ui.screens.MyBookings.MyBookingsScreen
+import com.parkshare.app.ui.screens.Profile.ProfileScreen
+import com.parkshare.app.ui.screens.OfferParking.OfferParkingScreen
+import com.parkshare.app.ui.screens.ParkingSubmitted.ParkingSubmittedScreen
 
 
 import androidx.compose.runtime.Composable
@@ -74,9 +79,17 @@ fun AppNavigation() {
         }
 
         composable(AppRoute.Home.route) {
+
             Homescreen(
                 onSearchClick = {
                     navController.navigate(AppRoute.Search.route)
+                },
+                onProfileClick = {
+                    navController.navigate(AppRoute.Profile.route)
+                },
+
+                        onOfferParkingClick = {
+                    navController.navigate(AppRoute.OfferParking.route)
                 }
             )
         }
@@ -100,6 +113,48 @@ fun AppNavigation() {
             ParkingDetailsScreen(
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onBookClick = {
+                    navController.navigate(AppRoute.Booking.route)
+                }
+            )
+        }
+
+
+        composable(AppRoute.Booking.route) {
+
+            BookingScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onConfirmBooking = {
+                    navController.navigate(AppRoute.BookingConfirmation.route)
+                }
+            )
+        }
+
+
+        composable(AppRoute.BookingConfirmation.route) {
+
+            BookingConfirmationScreen(
+                onViewBookingsClick = {
+                    navController.navigate(AppRoute.MyBookings.route)
+                },
+                onHomeClick = {
+                    navController.navigate(AppRoute.Home.route) {
+                        popUpTo(AppRoute.Home.route) {
+                            inclusive = false
+                        }
+                    }
+                }
+            )
+        }
+
+        composable(AppRoute.MyBookings.route) {
+
+            MyBookingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -107,9 +162,57 @@ fun AppNavigation() {
 
 
 
-
         composable(AppRoute.Profile.route) {
-            // Profile Screen - baad me banayenge
+
+            ProfileScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onBookingsClick = {
+                    navController.navigate(AppRoute.MyBookings.route)
+                },
+                onOfferParkingClick = {
+                    navController.navigate(AppRoute.OfferParking.route)
+                },
+                onLogoutClick = {
+                    navController.navigate(AppRoute.Login.route) {
+                        popUpTo(AppRoute.Home.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
         }
+
+
+        composable(AppRoute.OfferParking.route) {
+
+            OfferParkingScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onSubmitClick = {
+                    navController.navigate(AppRoute.ParkingSubmitted.route)
+                }
+            )
+        }
+
+
+        composable(AppRoute.ParkingSubmitted.route) {
+
+            ParkingSubmittedScreen(
+                onGoHomeClick = {
+                    navController.navigate(AppRoute.Home.route) {
+                        popUpTo(AppRoute.ParkingSubmitted.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
+
+
+
+
     }
 }
