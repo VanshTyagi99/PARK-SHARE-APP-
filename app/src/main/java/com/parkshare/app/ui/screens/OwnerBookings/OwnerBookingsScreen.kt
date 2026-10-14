@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import com.parkshare.app.ui.components.QrCameraScannerDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -88,7 +91,8 @@ private fun formatIstTime(isoUtc: String?): String {
 
 @Composable
 fun OwnerBookingsScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onChatClick: (bookingId: String) -> Unit = {}
 ) {
     val bookingRepository = remember { BookingRepository() }
     val scope = rememberCoroutineScope()
@@ -104,6 +108,7 @@ fun OwnerBookingsScreen(
     var rejectReason by remember { mutableStateOf("") }
     var checkinDialogBooking by remember { mutableStateOf<BookingDto?>(null) }
     var checkinInputToken by remember { mutableStateOf("") }
+    var showCameraScannerBooking by remember { mutableStateOf<BookingDto?>(null) }
     var checkoutDialogBooking by remember { mutableStateOf<BookingDto?>(null) }
     var showGlobalPassDialog by remember { mutableStateOf(false) }
     var globalPassInput by remember { mutableStateOf("") }
@@ -347,16 +352,49 @@ fun OwnerBookingsScreen(
                             rejectReason = ""
                         },
                         onVerifyCheckIn = {
-                            checkinDialogBooking = booking
-                            checkinInputToken = booking.qrToken ?: ""
+                            showCameraScannerBooking = booking
                         },
                         onCheckOut = {
                             checkoutDialogBooking = booking
+                        },
+                        onChatClick = {
+                            onChatClick(booking.id)
                         }
                     )
                 }
             }
         }
+    }
+
+    // Camera QR Scanner Dialog
+    if (showCameraScannerBooking != null) {
+        val b = showCameraScannerBooking!!
+        QrCameraScannerDialog(
+            bookingTitle = b.listingTitle ?: "Parking Space",
+            onQrScanned = { scannedBookingId, qrToken ->
+                scope.launch {
+                    isOperating = true
+                    showCameraScannerBooking = null
+                    val targetId = scannedBookingId ?: b.id
+                    val res = bookingRepository.checkInBooking(targetId, qrToken)
+                    res.onSuccess {
+                        operationFeedback = "Driver verified and checked in via Camera QR scan! Spot is now actively occupied."
+                        refreshRequests()
+                        selectedTab = "Active"
+                        isOperating = false
+                    }.onFailure { err ->
+                        operationFeedback = "QR Scan Verification failed: ${err.message}"
+                        isOperating = false
+                    }
+                }
+            },
+            onDismiss = { showCameraScannerBooking = null },
+            onSwitchToManual = {
+                checkinDialogBooking = b
+                checkinInputToken = b.qrToken ?: ""
+                showCameraScannerBooking = null
+            }
+        )
     }
 
     // Verify Check-In Dialog for specific booking
@@ -391,6 +429,26 @@ fun OwnerBookingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            showCameraScannerBooking = b
+                            checkinDialogBooking = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Camera", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Scan with Camera", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "— OR ENTER TOKEN MANUALLY —",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "48-Character Pass Token:",
                         fontSize = 12.sp,
@@ -705,7 +763,8 @@ fun OwnerRequestCard(
     onAccept: () -> Unit,
     onReject: () -> Unit,
     onVerifyCheckIn: () -> Unit = {},
-    onCheckOut: () -> Unit = {}
+    onCheckOut: () -> Unit = {},
+    onChatClick: () -> Unit = {}
 ) {
     val statusColor = when (booking.status) {
         "CHECKED_IN" -> Color(0xFF2E7D32)
@@ -962,6 +1021,19 @@ fun OwnerRequestCard(
                         Text("Check Out Driver / Release Slot", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
+            }
+
+            // Chat with Driver action for all bookings
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onChatClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF)),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(imageVector = Icons.Default.ChatBubbleOutline, contentDescription = "Chat", tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Chat with Driver", color = PrimaryBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

@@ -116,6 +116,41 @@ class ParkingRepository {
             }
         }
 
+    suspend fun deleteParking(id: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = api.deleteParking(id)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Result.failure(mapException(e))
+            }
+        }
+
+    suspend fun getMyListingsWithLimit(): Result<com.parkshare.app.data.api.MyListingsResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = api.getMyListings()
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true) {
+                        Result.success(body)
+                    } else {
+                        Result.failure(Exception(body?.message ?: "Failed to retrieve your listings"))
+                    }
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Result.failure(mapException(e))
+            }
+        }
+
     private fun <T> handleApiResponse(response: Response<ApiResponse<T>>): Result<T> {
         return if (response.isSuccessful) {
             val body = response.body()

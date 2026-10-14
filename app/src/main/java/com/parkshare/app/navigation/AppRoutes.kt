@@ -44,4 +44,34 @@ sealed class AppRoute(val route: String) {
     }
 
     data object Profile : AppRoute("profile")
+ 
+    data object VerificationStatus : AppRoute("verification_status")
+
+    data object VerificationForm : AppRoute("verification_form")
+
+    data object AdminVerificationQueue : AppRoute("admin_verification_queue")
+
+    data object AdminVerificationDetail : AppRoute("admin_verification_detail/{verificationId}") {
+        fun createRoute(verificationId: String) = "admin_verification_detail/$verificationId"
+    }
+
+    data object Chat : AppRoute("chat?bookingId={bookingId}&conversationId={conversationId}") {
+        fun createRoute(bookingId: String? = null, conversationId: String? = null): String {
+            return when {
+                !bookingId.isNullOrBlank() -> "chat?bookingId=$bookingId&conversationId="
+                !conversationId.isNullOrBlank() -> "chat?bookingId=&conversationId=$conversationId"
+                else -> "chat?bookingId=&conversationId="
+            }
+        }
+    }
+
+    data object Conversations : AppRoute("conversations")
+
+    data object AdminDashboard : AppRoute("admin_dashboard")
+
+    data object AdminUsers : AppRoute("admin_users")
+
+    data object AdminListings : AppRoute("admin_listings")
+
+    data object AdminBookings : AppRoute("admin_bookings")
 }

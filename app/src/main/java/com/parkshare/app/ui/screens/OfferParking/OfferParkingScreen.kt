@@ -18,9 +18,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.size
+import com.parkshare.app.utils.ImageUtils
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
@@ -109,8 +120,9 @@ fun OfferParkingScreen(
         mutableStateOf("")
     }
 
-    var selectedPhotos by remember {
-        mutableStateOf<List<Uri>>(emptyList())
+    val context = LocalContext.current
+    var photosBase64 by remember {
+        mutableStateOf<List<String>>(emptyList())
     }
 
     val parkingTypes = listOf(
@@ -122,8 +134,11 @@ fun OfferParkingScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 3)
     ) { uris ->
-
-        selectedPhotos = uris.take(3)
+        val converted = uris.mapNotNull { uri ->
+            ImageUtils.uriToBase64(context, uri)
+        }
+        val combined = (photosBase64 + converted).take(3)
+        photosBase64 = combined
     }
 
     LaunchedEffect(listingId) {
@@ -142,6 +157,7 @@ fun OfferParkingScreen(
                 }
                 availableFrom = listing.availableFrom
                 availableUntil = listing.availableUntil
+                photosBase64 = listing.photos.take(3)
             }.onFailure { error ->
                 showError = true
                 errorMessage = error.message ?: "Failed to load listing details"
@@ -458,18 +474,18 @@ fun OfferParkingScreen(
                     )
 
                     Text(
-                        text = if (selectedPhotos.isEmpty()) {
+                        text = if (photosBase64.isEmpty()) {
                             "Add up to 3 photos"
                         } else {
-                            "${selectedPhotos.size} photo(s) selected"
+                            "${photosBase64.size}/3 photo(s) selected"
                         },
                         fontSize = 13.sp,
-                        color = if (selectedPhotos.isEmpty()) {
+                        color = if (photosBase64.isEmpty()) {
                             Color.Gray
                         } else {
                             SecondaryGreen
                         },
-                        fontWeight = if (selectedPhotos.isEmpty()) {
+                        fontWeight = if (photosBase64.isEmpty()) {
                             FontWeight.Normal
                         } else {
                             FontWeight.SemiBold
@@ -491,8 +507,10 @@ fun OfferParkingScreen(
                     )
                 ) {
                     Text(
-                        text = if (selectedPhotos.isEmpty()) {
+                        text = if (photosBase64.isEmpty()) {
                             "Add"
+                        } else if (photosBase64.size < 3) {
+                            "+ Add More"
                         } else {
                             "Change"
                         }
@@ -501,9 +519,72 @@ fun OfferParkingScreen(
             }
         }
 
-        // Prototype note below photos card
+        // Photo thumbnail preview list
+        if (photosBase64.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                photosBase64.forEachIndexed { index, photoStr ->
+                    val bitmap = remember(photoStr) { ImageUtils.base64ToImageBitmap(photoStr) }
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE2E8F0))
+                    ) {
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = "Parking photo ${index + 1}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalParking,
+                                    contentDescription = null,
+                                    tint = Color.Gray
+                                )
+                            }
+                        }
+
+                        // Remove photo button overlay
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    photosBase64 = photosBase64.filterIndexed { i, _ -> i != index }
+                                },
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Text(
-            text = "Note: Photo upload is in prototype preview mode. Images will be permanently persisted in an upcoming cloud storage update.",
+            text = "Add clear photos of your parking space. Photos help drivers locate your space faster.",
             fontSize = 12.sp,
             color = Color.Gray,
             modifier = Modifier.padding(top = 6.dp, start = 4.dp)
@@ -571,7 +652,8 @@ fun OfferParkingScreen(
                                     parkingType = parkingType,
                                     pricePerHour = priceVal,
                                     availableFrom = availableFrom.trim(),
-                                    availableUntil = availableUntil.trim()
+                                    availableUntil = availableUntil.trim(),
+                                    photos = photosBase64
                                 )
                                 val result = parkingRepository.createParking(req)
                                 result.onSuccess {
@@ -590,7 +672,8 @@ fun OfferParkingScreen(
                                     parkingType = parkingType,
                                     pricePerHour = priceVal,
                                     availableFrom = availableFrom.trim(),
-                                    availableUntil = availableUntil.trim()
+                                    availableUntil = availableUntil.trim(),
+                                    photos = photosBase64
                                 )
                                 val result = parkingRepository.updateParking(listingId, req)
                                 result.onSuccess {

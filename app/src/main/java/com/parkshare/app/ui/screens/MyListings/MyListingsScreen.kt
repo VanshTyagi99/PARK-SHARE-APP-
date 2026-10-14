@@ -20,11 +20,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.LocalParking
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,6 +37,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -41,6 +46,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import com.parkshare.app.utils.ImageUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,24 +74,29 @@ import kotlinx.coroutines.launch
 fun MyListingsScreen(
     onBackClick: () -> Unit = {},
     onAddNewClick: () -> Unit = {},
-    onEditClick: (String) -> Unit = {}
+    onEditClick: (String) -> Unit = {},
+    onViewOwnerBookings: () -> Unit = {}
 ) {
     val parkingRepository = remember { ParkingRepository() }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var listings by remember { mutableStateOf<List<ParkingListingDto>>(emptyList()) }
+    var maxLimit by remember { mutableStateOf(10) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var togglingListingId by remember { mutableStateOf<String?>(null) }
+    var listingToDelete by remember { mutableStateOf<ParkingListingDto?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     val loadListings: () -> Unit = {
         coroutineScope.launch {
             isLoading = true
             errorMessage = null
-            val result = parkingRepository.getMyListings()
-            result.onSuccess { data ->
-                listings = data
+            val result = parkingRepository.getMyListingsWithLimit()
+            result.onSuccess { res ->
+                listings = res.data
+                maxLimit = res.maxLimit
                 isLoading = false
             }.onFailure { err ->
                 errorMessage = err.message ?: "Failed to load listings"
@@ -100,8 +113,18 @@ fun MyListingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddNewClick,
-                containerColor = SecondaryGreen,
+                onClick = {
+                    if (listings.size >= maxLimit) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "Quota reached: You have $maxLimit of $maxLimit registered spaces. Delete or edit a space to manage capacity."
+                            )
+                        }
+                    } else {
+                        onAddNewClick()
+                    }
+                },
+                containerColor = if (listings.size >= maxLimit) Color.Gray else SecondaryGreen,
                 contentColor = Color.White,
                 shape = CircleShape
             ) {
@@ -159,7 +182,120 @@ fun MyListingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Quick Action: Incoming Driver Requests Banner
+            Card(
+                onClick = onViewOwnerBookings,
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = PrimaryBlue.copy(alpha = 0.12f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.ListAlt,
+                                    contentDescription = null,
+                                    tint = PrimaryBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = "Incoming Booking Requests",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = PrimaryBlue
+                            )
+                            Text(
+                                text = "Review & respond to driver reservations",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = PrimaryBlue,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Capacity & Quota Card
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Space Quota Capacity",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF334155)
+                        )
+                        Text(
+                            text = "${listings.size} of $maxLimit Spaces",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (listings.size >= maxLimit) Color(0xFFDC2626) else PrimaryBlue
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = { (listings.size.toFloat() / maxLimit.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (listings.size >= maxLimit) Color(0xFFDC2626) else SecondaryGreen,
+                        trackColor = Color(0xFFE2E8F0)
+                    )
+
+                    if (listings.size >= maxLimit) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Maximum quota limit reached (10 spaces). You cannot add more spaces.",
+                            fontSize = 11.sp,
+                            color = Color(0xFFDC2626),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Content States
             when {
@@ -304,15 +440,6 @@ fun MyListingsScreen(
                 }
 
                 else -> {
-                    Text(
-                        text = "${listings.size} of 10 spaces registered",
-                        fontSize = 14.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -340,7 +467,8 @@ fun MyListingsScreen(
                                         togglingListingId = null
                                     }
                                 },
-                                onEditClick = { onEditClick(listing.id) }
+                                onEditClick = { onEditClick(listing.id) },
+                                onDeleteClick = { listingToDelete = listing }
                             )
                         }
 
@@ -351,6 +479,77 @@ fun MyListingsScreen(
                 }
             }
         }
+
+        // Delete Confirmation Dialog
+        if (listingToDelete != null) {
+            val toDelete = listingToDelete!!
+            AlertDialog(
+                onDismissRequest = { if (!isDeleting) listingToDelete = null },
+                title = {
+                    Text(
+                        text = "Delete Parking Space?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Are you sure you want to permanently delete \"${toDelete.title}\"?",
+                            fontSize = 14.sp,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Note: If there are active, upcoming, or checked-in reservations on this space, deletion will be rejected for driver protection.",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            lineHeight = 18.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                isDeleting = true
+                                val result = parkingRepository.deleteParking(toDelete.id)
+                                result.onSuccess {
+                                    listings = listings.filter { it.id != toDelete.id }
+                                    listingToDelete = null
+                                    snackbarHostState.showSnackbar("Parking space deleted successfully")
+                                }.onFailure { err ->
+                                    snackbarHostState.showSnackbar(
+                                        err.message ?: "Failed to delete listing"
+                                    )
+                                }
+                                isDeleting = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                        enabled = !isDeleting
+                    ) {
+                        if (isDeleting) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text("Delete Space")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { listingToDelete = null },
+                        enabled = !isDeleting
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -359,7 +558,8 @@ private fun ListingItemCard(
     listing: ParkingListingDto,
     isToggling: Boolean,
     onStatusToggle: (Boolean) -> Unit,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -370,61 +570,83 @@ private fun ListingItemCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Header: Title + Active/Inactive Badge
+            // Header: Thumbnail + Title/Status + Address
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = listing.title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                val firstPhoto = remember(listing.photos) { listing.photos.firstOrNull() }
+                val bitmap = remember(firstPhoto) { ImageUtils.base64ToImageBitmap(firstPhoto) }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Status Badge
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (listing.isActive) Color(0xFFE8F5E9) else Color(0xFFF1F5F9)
-                ) {
-                    Text(
-                        text = if (listing.isActive) "Active" else "Inactive",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (listing.isActive) Color(0xFF2E7D32) else Color(0xFF64748B),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "Listing Thumbnail",
+                        modifier = Modifier
+                            .size(68.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = listing.title,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
 
-            // Address
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
+                        Spacer(modifier = Modifier.width(6.dp))
 
-                Spacer(modifier = Modifier.width(4.dp))
+                        // Status Badge
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (listing.isActive) Color(0xFFE8F5E9) else Color(0xFFF1F5F9)
+                        ) {
+                            Text(
+                                text = if (listing.isActive) "Active" else "Inactive",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (listing.isActive) Color(0xFF2E7D32) else Color(0xFF64748B),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
 
-                Text(
-                    text = listing.address,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Address
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(15.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Text(
+                            text = listing.address,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -502,7 +724,7 @@ private fun ListingItemCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Actions: Active Switch & Edit Button
+            // Actions: Active Switch & Edit Button & Delete Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -512,12 +734,12 @@ private fun ListingItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (listing.isActive) "Listing Active" else "Listing Paused",
+                        text = if (listing.isActive) "Active" else "Paused",
                         fontSize = 13.sp,
                         color = Color(0xFF475569)
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     if (isToggling) {
                         CircularProgressIndicator(
@@ -539,24 +761,42 @@ private fun ListingItemCard(
                     }
                 }
 
-                OutlinedButton(
-                    onClick = onEditClick,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = PrimaryBlue
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Edit",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    OutlinedButton(
+                        onClick = onEditClick,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = PrimaryBlue
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Edit",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Space",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

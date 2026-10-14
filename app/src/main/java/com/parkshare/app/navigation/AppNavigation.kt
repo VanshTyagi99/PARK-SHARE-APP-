@@ -15,6 +15,16 @@ import com.parkshare.app.ui.screens.OfferParking.OfferParkingScreen
 import com.parkshare.app.ui.screens.ParkingSubmitted.ParkingSubmittedScreen
 import com.parkshare.app.ui.screens.MyListings.MyListingsScreen
 import com.parkshare.app.ui.screens.OwnerBookings.OwnerBookingsScreen
+import com.parkshare.app.ui.screens.Verification.VerificationStatusScreen
+import com.parkshare.app.ui.screens.Verification.VerificationFormScreen
+import com.parkshare.app.ui.screens.Admin.AdminVerificationQueueScreen
+import com.parkshare.app.ui.screens.Admin.AdminVerificationDetailScreen
+import com.parkshare.app.ui.screens.Admin.AdminDashboardScreen
+import com.parkshare.app.ui.screens.Admin.AdminUsersScreen
+import com.parkshare.app.ui.screens.Admin.AdminListingsScreen
+import com.parkshare.app.ui.screens.Admin.AdminBookingsScreen
+import com.parkshare.app.ui.screens.Chat.ChatScreen
+import com.parkshare.app.ui.screens.Chat.ConversationsListScreen
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
@@ -96,6 +106,9 @@ fun AppNavigation() {
                 },
                 onParkingClick = { listingId ->
                     navController.navigate(AppRoute.ParkingDetails.createRoute(listingId))
+                },
+                onVerificationRequired = {
+                    navController.navigate(AppRoute.VerificationStatus.route)
                 }
             )
         }
@@ -168,6 +181,9 @@ fun AppNavigation() {
             MyBookingsScreen(
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onChatClick = { bookingId ->
+                    navController.navigate(AppRoute.Chat.createRoute(bookingId = bookingId))
                 }
             )
         }
@@ -176,6 +192,9 @@ fun AppNavigation() {
             OwnerBookingsScreen(
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onChatClick = { bookingId ->
+                    navController.navigate(AppRoute.Chat.createRoute(bookingId = bookingId))
                 }
             )
         }
@@ -197,6 +216,15 @@ fun AppNavigation() {
                 onMyListingsClick = {
                     navController.navigate(AppRoute.MyListings.route)
                 },
+                onVerificationStatusClick = {
+                    navController.navigate(AppRoute.VerificationStatus.route)
+                },
+                onAdminCenterClick = {
+                    navController.navigate(AppRoute.AdminDashboard.route)
+                },
+                onMessagesClick = {
+                    navController.navigate(AppRoute.Conversations.route)
+                },
                 onLogoutClick = {
                     navController.navigate(AppRoute.Login.route) {
                         popUpTo(0) {
@@ -217,6 +245,9 @@ fun AppNavigation() {
                 },
                 onEditClick = { listingId ->
                     navController.navigate(AppRoute.EditParking.createRoute(listingId))
+                },
+                onViewOwnerBookings = {
+                    navController.navigate(AppRoute.OwnerBookings.route)
                 }
             )
         }
@@ -264,8 +295,142 @@ fun AppNavigation() {
             )
         }
 
+        composable(AppRoute.VerificationStatus.route) {
+            VerificationStatusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onStartVerification = {
+                    navController.navigate(AppRoute.VerificationForm.route)
+                },
+                onFindParking = {
+                    navController.navigate(AppRoute.Search.route)
+                },
+                onOfferParking = {
+                    navController.navigate(AppRoute.OfferParking.route)
+                }
+            )
+        }
 
+        composable(AppRoute.VerificationForm.route) {
+            VerificationFormScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onSubmissionSuccess = {
+                    navController.navigate(AppRoute.VerificationStatus.route) {
+                        popUpTo(AppRoute.VerificationForm.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
 
+        composable(AppRoute.AdminVerificationQueue.route) {
+            AdminVerificationQueueScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onReviewClick = { verificationId ->
+                    navController.navigate(AppRoute.AdminVerificationDetail.createRoute(verificationId))
+                }
+            )
+        }
 
+        composable(
+            route = AppRoute.AdminVerificationDetail.route,
+            arguments = listOf(navArgument("verificationId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val verificationId = backStackEntry.arguments?.getString("verificationId")
+            AdminVerificationDetailScreen(
+                verificationId = verificationId,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onReviewComplete = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(AppRoute.Conversations.route) {
+            ConversationsListScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onConversationClick = { convId, bookingId ->
+                    navController.navigate(AppRoute.Chat.createRoute(conversationId = convId, bookingId = bookingId))
+                }
+            )
+        }
+
+        composable(
+            route = AppRoute.Chat.route,
+            arguments = listOf(
+                navArgument("bookingId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("conversationId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val bId = backStackEntry.arguments?.getString("bookingId")?.takeIf { it.isNotBlank() }
+            val cId = backStackEntry.arguments?.getString("conversationId")?.takeIf { it.isNotBlank() }
+            ChatScreen(
+                bookingId = bId,
+                conversationId = cId,
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(AppRoute.AdminDashboard.route) {
+            AdminDashboardScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onNavigateVerificationCenter = {
+                    navController.navigate(AppRoute.AdminVerificationQueue.route)
+                },
+                onNavigateUsers = {
+                    navController.navigate(AppRoute.AdminUsers.route)
+                },
+                onNavigateListings = {
+                    navController.navigate(AppRoute.AdminListings.route)
+                },
+                onNavigateBookings = {
+                    navController.navigate(AppRoute.AdminBookings.route)
+                }
+            )
+        }
+
+        composable(AppRoute.AdminUsers.route) {
+            AdminUsersScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(AppRoute.AdminListings.route) {
+            AdminListingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(AppRoute.AdminBookings.route) {
+            AdminBookingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }

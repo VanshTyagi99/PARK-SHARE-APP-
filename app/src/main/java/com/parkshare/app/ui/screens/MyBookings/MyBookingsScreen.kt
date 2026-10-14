@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -93,7 +94,8 @@ private fun formatIstTime(isoUtc: String?): String {
 
 @Composable
 fun MyBookingsScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onChatClick: (bookingId: String) -> Unit = {}
 ) {
     val bookingRepository = remember { BookingRepository() }
     val scope = rememberCoroutineScope()
@@ -353,6 +355,9 @@ fun MyBookingsScreen(
                         onCancelClick = {
                             cancelDialogBooking = booking
                             cancelReason = ""
+                        },
+                        onChatClick = {
+                            onChatClick(booking.id)
                         }
                     )
                 }
@@ -690,7 +695,8 @@ fun DriverBookingCard(
     onViewPassClick: () -> Unit,
     onCheckInClick: () -> Unit = {},
     onCheckOutClick: () -> Unit = {},
-    onCancelClick: () -> Unit
+    onCancelClick: () -> Unit,
+    onChatClick: () -> Unit = {}
 ) {
     val statusColor = when (booking.status) {
         "CHECKED_IN" -> Color(0xFF2E7D32)
@@ -968,6 +974,19 @@ fun DriverBookingCard(
                         Text("Cancel Request", color = Color.Red, fontSize = 13.sp)
                     }
                 }
+            }
+
+            // Chat with Spot Owner action
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onChatClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF)),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(imageVector = Icons.Default.ChatBubbleOutline, contentDescription = "Chat", tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Chat with Spot Owner", color = PrimaryBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

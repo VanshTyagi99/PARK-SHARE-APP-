@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const ParkingListing = require('../models/ParkingListing');
+const Booking = require('../models/Booking');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
+const { requireApprovedVerification } = require('../middleware/verification');
 const { isDbConnected } = require('../config/db');
 
 // Helper to normalize vehicle compatibility and parking type
@@ -64,7 +66,7 @@ const checkDb = (req, res, next) => {
 // @route   POST /api/parking
 // @desc    Create a new parking listing for the authenticated owner
 // @access  Protected
-router.post('/', requireAuth, checkDb, async (req, res) => {
+router.post('/', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   const {
     title,
     address,
@@ -207,6 +209,7 @@ router.get('/my-listings', requireAuth, checkDb, async (req, res) => {
     res.status(200).json({
       success: true,
       count: listings.length,
+      maxLimit: 10,
       data: listings
     });
   } catch (error) {
@@ -221,7 +224,7 @@ router.get('/my-listings', requireAuth, checkDb, async (req, res) => {
 // @route   GET /api/parking/search
 // @desc    Discover and search active parking spaces with vehicle, price, text & proximity filters
 // @access  Protected
-router.get('/search', requireAuth, checkDb, async (req, res) => {
+router.get('/search', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   const {
     query,
     vehicleType,
@@ -391,7 +394,7 @@ router.get('/search', requireAuth, checkDb, async (req, res) => {
 // @route   GET /api/parking/:id
 // @desc    Get details of a specific parking listing
 // @access  Protected
-router.get('/:id', requireAuth, checkDb, async (req, res) => {
+router.get('/:id', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -425,9 +428,10 @@ router.get('/:id', requireAuth, checkDb, async (req, res) => {
 });
 
 // @route   PUT /api/parking/:id
+// @route   PUT /api/parking/:id
 // @desc    Update a parking listing owned by the current user
 // @access  Protected
-router.put('/:id', requireAuth, checkDb, async (req, res) => {
+router.put('/:id', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -577,7 +581,7 @@ router.put('/:id', requireAuth, checkDb, async (req, res) => {
 // @route   PATCH /api/parking/:id/status
 // @desc    Activate or deactivate a parking listing owned by the current user
 // @access  Protected
-router.patch('/:id/status', requireAuth, checkDb, async (req, res) => {
+router.patch('/:id/status', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   const { id } = req.params;
   const { isActive } = req.body;
 
@@ -626,6 +630,75 @@ router.patch('/:id/status', requireAuth, checkDb, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error updating listing status'
+    });
+  }
+});
+
+// @route   DELETE /api/parking/:id
+// @desc    Permanently delete a parking listing owned by the current user
+// @access  Protected
+router.delete('/:id', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid parking listing ID format'
+    });
+  }
+
+  try {
+    const listing = await ParkingListing.findById(id);
+
+    if (!listing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Parking listing not found'
+      });
+    }
+
+    // Ownership verification
+    if (listing.ownerFirebaseUid !== req.user.uid) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: You can only delete your own parking listings'
+      });
+    }
+
+    // Reservation-Safety Guard: Check for active or blocking bookings
+    const activeBooking = await Booking.findOne({
+      listingId: id,
+      status: { $in: ['PENDING', 'ACCEPTED', 'AWAITING_DRIVER_CONFIRMATION', 'CONFIRMED', 'CHECKED_IN'] }
+    });
+
+    if (activeBooking) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete parking space with active or upcoming reservations. Please wait for sessions to complete or cancel them first.',
+        activeBookingId: activeBooking._id,
+        bookingStatus: activeBooking.status
+      });
+    }
+
+    // Delete listing document
+    await ParkingListing.deleteOne({ _id: id });
+
+    // Atomically decrement owner's listing count (ensuring it does not drop below 0)
+    await User.updateOne(
+      { firebaseUid: req.user.uid, listingCount: { $gt: 0 } },
+      { $inc: { listingCount: -1 } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Parking listing deleted successfully',
+      deletedListingId: id
+    });
+  } catch (error) {
+    console.error(`[Parking API] Delete error: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting parking listing'
     });
   }
 });

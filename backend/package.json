@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/health.test.js && node test/parking.test.js && node test/search.test.js && node test/booking_model.test.js && node test/booking_api.test.js",
+    "test": "node test/health.test.js && node test/parking.test.js && node test/search.test.js && node test/booking_model.test.js && node test/booking_api.test.js && node test/parking_owner_management.test.js && node test/verification.test.js && node test/chat_and_admin.test.js",
+    "test:chat_and_admin": "node test/chat_and_admin.test.js",
+    "test:verification": "node test/verification.test.js",
+    "test:owner": "node test/parking_owner_management.test.js",
     "test:booking:unit": "node test/booking_model.test.js",
     "test:booking:api": "node test/booking_api.test.js",
     "test:booking:atlas": "node test/booking_lifecycle_atlas.test.js",

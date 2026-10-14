@@ -19,6 +19,13 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import com.parkshare.app.utils.ImageUtils
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -175,6 +182,30 @@ fun ParkingDetailsScreen(
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
+                // Parking Photos Gallery
+                if (item?.photos?.isNotEmpty() == true) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        items(item.photos) { photoStr ->
+                            val bitmap = remember(photoStr) { ImageUtils.base64ToImageBitmap(photoStr) }
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = "Parking Space Photo",
+                                    modifier = Modifier
+                                        .size(width = 240.dp, height = 150.dp)
+                                        .clip(RoundedCornerShape(14.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Parking Name
                 Text(
                     text = title,

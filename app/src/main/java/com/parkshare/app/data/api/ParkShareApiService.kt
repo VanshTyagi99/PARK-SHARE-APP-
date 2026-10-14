@@ -2,6 +2,7 @@ package com.parkshare.app.data.api
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -62,6 +63,11 @@ interface ParkShareApiService {
         @Body request: ListingStatusRequest
     ): Response<ApiResponse<ParkingListingDto>>
 
+    @DELETE("parking/{id}")
+    suspend fun deleteParking(
+        @Path("id") id: String
+    ): Response<ApiResponse<Unit>>
+
     // MARK: - Booking Endpoints
 
     @POST("bookings")
@@ -117,5 +123,68 @@ interface ParkShareApiService {
         @Path("id") id: String,
         @Body request: QrVerificationRequest
     ): Response<ApiResponse<BookingDto>>
+
+    // MARK: - Verification Endpoints
+
+    @GET("verification/status")
+    suspend fun getVerificationStatus(): Response<ApiResponse<VerificationStatusDto>>
+
+    @POST("verification/submit")
+    suspend fun submitVerification(
+        @Body request: VerificationSubmissionRequest
+    ): Response<ApiResponse<VerificationSubmissionData>>
+
+    // MARK: - Admin Verification Endpoints
+
+    @GET("admin/verifications")
+    suspend fun getAdminVerificationQueue(
+        @Query("status") status: String? = null
+    ): Response<VerificationQueueResponse>
+
+    @GET("admin/verifications/{id}/documents")
+    suspend fun getAdminVerificationDocuments(
+        @Path("id") id: String
+    ): Response<ApiResponse<VerificationDocumentsDto>>
+
+    @PATCH("admin/verifications/{id}/review")
+    suspend fun reviewVerification(
+        @Path("id") id: String,
+        @Body request: ReviewVerificationRequest
+    ): Response<ApiResponse<ReviewVerificationResponseData>>
+
+    // MARK: - Driver-Owner Chat Endpoints
+
+    @GET("chat/conversations")
+    suspend fun getConversations(): Response<com.parkshare.app.data.chat.ChatApiResponse<List<com.parkshare.app.data.chat.ConversationDto>>>
+
+    @GET("chat/booking/{bookingId}")
+    suspend fun getBookingConversation(
+        @Path("bookingId") bookingId: String
+    ): Response<com.parkshare.app.data.chat.ChatApiResponse<com.parkshare.app.data.chat.ConversationDto>>
+
+    @GET("chat/conversations/{conversationId}/messages")
+    suspend fun getConversationMessages(
+        @Path("conversationId") conversationId: String
+    ): Response<com.parkshare.app.data.chat.ChatApiResponse<List<com.parkshare.app.data.chat.MessageDto>>>
+
+    @POST("chat/conversations/{conversationId}/messages")
+    suspend fun sendMessage(
+        @Path("conversationId") conversationId: String,
+        @Body request: com.parkshare.app.data.chat.SendMessageRequest
+    ): Response<com.parkshare.app.data.chat.ChatApiResponse<com.parkshare.app.data.chat.MessageDto>>
+
+    // MARK: - Admin Dashboard & Management Endpoints
+
+    @GET("admin/dashboard/stats")
+    suspend fun getAdminDashboardStats(): Response<ApiResponse<com.parkshare.app.data.admin.AdminDashboardStatsDto>>
+
+    @GET("admin/users")
+    suspend fun getAdminUsers(): Response<ApiResponse<List<com.parkshare.app.data.admin.AdminUserItemDto>>>
+
+    @GET("admin/listings")
+    suspend fun getAdminListings(): Response<ApiResponse<List<com.parkshare.app.data.admin.AdminListingItemDto>>>
+
+    @GET("admin/bookings")
+    suspend fun getAdminBookings(): Response<ApiResponse<List<com.parkshare.app.data.admin.AdminBookingItemDto>>>
 }
 

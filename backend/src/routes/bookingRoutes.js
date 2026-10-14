@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const ParkingListing = require('../models/ParkingListing');
 const { requireAuth } = require('../middleware/auth');
+const { requireApprovedVerification } = require('../middleware/verification');
 const { isDbConnected } = require('../config/db');
 
 // Middleware: Verify database connectivity
@@ -81,7 +82,7 @@ const expireStaleBookings = async () => {
  * Driver submits a new booking request.
  * Concurrency-safe: utilizes parent document write lock & session-level conflict verification.
  */
-router.post('/', requireAuth, checkDb, async (req, res) => {
+router.post('/', requireAuth, checkDb, requireApprovedVerification, async (req, res) => {
   try {
     const { listingId, startTime, endTime, vehicleNumber, vehicleType, driverNotes } = req.body;
 

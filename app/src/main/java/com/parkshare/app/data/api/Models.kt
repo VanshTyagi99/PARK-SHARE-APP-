@@ -25,6 +25,7 @@ data class UserProfileResponse(
     @SerializedName("fullName") val fullName: String,
     @SerializedName("phone") val phone: String,
     @SerializedName("role") val role: String,
+    @SerializedName("verificationStatus") val verificationStatus: String? = "NOT_SUBMITTED",
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
 )
@@ -86,6 +87,7 @@ data class ListingStatusRequest(
 data class MyListingsResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("count") val count: Int = 0,
+    @SerializedName("maxLimit") val maxLimit: Int = 10,
     @SerializedName("data") val data: List<ParkingListingDto> = emptyList(),
     @SerializedName("message") val message: String? = null
 )
@@ -168,4 +170,79 @@ data class BookingListResponse(
     @SerializedName("data") val data: List<BookingDto> = emptyList(),
     @SerializedName("message") val message: String? = null
 )
+
+// MARK: - Verification DTOs
+
+data class VerificationStatusDto(
+    @SerializedName("status") val status: String = "NOT_SUBMITTED",
+    @SerializedName("rejectionReason") val rejectionReason: String? = null,
+    @SerializedName("submittedAt") val submittedAt: String? = null,
+    @SerializedName("reviewedAt") val reviewedAt: String? = null
+)
+
+data class VerificationSubmissionRequest(
+    @SerializedName("identityDocumentType") val identityDocumentType: String,
+    @SerializedName("identityDocumentData") val identityDocumentData: String,
+    @SerializedName("addressDocumentType") val addressDocumentType: String,
+    @SerializedName("addressDocumentData") val addressDocumentData: String,
+    @SerializedName("selfieData") val selfieData: String
+)
+
+data class VerificationSubmissionData(
+    @SerializedName("status") val status: String,
+    @SerializedName("submittedAt") val submittedAt: String? = null
+)
+
+data class VerificationQueueItemDto(
+    @SerializedName("_id") val id: String,
+    @SerializedName("userId") val userId: String,
+    @SerializedName("userEmail") val userEmail: String,
+    @SerializedName("userName") val userName: String? = null,
+    @SerializedName("identityDocumentType") val identityDocumentType: String,
+    @SerializedName("addressDocumentType") val addressDocumentType: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("rejectionReason") val rejectionReason: String? = null,
+    @SerializedName("submittedAt") val submittedAt: String? = null,
+    @SerializedName("reviewedAt") val reviewedAt: String? = null,
+    @SerializedName("reviewedBy") val reviewedBy: String? = null
+)
+
+data class VerificationQueueResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("count") val count: Int = 0,
+    @SerializedName("data") val data: List<VerificationQueueItemDto> = emptyList(),
+    @SerializedName("message") val message: String? = null
+)
+
+data class VerificationDocumentsDto(
+    @SerializedName("_id") val id: String,
+    @SerializedName("userId") val userId: String,
+    @SerializedName("userEmail") val userEmail: String,
+    @SerializedName("userName") val userName: String? = null,
+    @SerializedName("identityDocumentType") val identityDocumentType: String,
+    @SerializedName("identityDocumentData") val identityDocumentData: String,
+    @SerializedName("addressDocumentType") val addressDocumentType: String,
+    @SerializedName("addressDocumentData") val addressDocumentData: String,
+    @SerializedName("selfieData") val selfieData: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("rejectionReason") val rejectionReason: String? = null,
+    @SerializedName("submittedAt") val submittedAt: String? = null,
+    @SerializedName("reviewedAt") val reviewedAt: String? = null,
+    @SerializedName("reviewedBy") val reviewedBy: String? = null
+)
+
+data class ReviewVerificationRequest(
+    @SerializedName("status") val status: String,
+    @SerializedName("rejectionReason") val rejectionReason: String? = null
+)
+
+data class ReviewVerificationResponseData(
+    @SerializedName("_id") val id: String,
+    @SerializedName("userId") val userId: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("rejectionReason") val rejectionReason: String? = null,
+    @SerializedName("reviewedAt") val reviewedAt: String? = null,
+    @SerializedName("reviewedBy") val reviewedBy: String? = null
+)
+
 

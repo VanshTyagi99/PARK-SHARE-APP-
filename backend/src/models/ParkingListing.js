@@ -89,12 +89,10 @@ const parkingListingSchema = new mongoose.Schema(
     location: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        default: undefined
+        type: [Number] // [longitude, latitude]
       }
     },
     isDemoData: {
@@ -131,6 +129,8 @@ parkingListingSchema.pre('save', function (next) {
       type: 'Point',
       coordinates: [Number(this.longitude), Number(this.latitude)]
     };
+  } else {
+    this.location = undefined;
   }
   next();
 });

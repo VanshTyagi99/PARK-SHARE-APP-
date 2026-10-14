@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parkshare.app.data.api.ApiClient
 import com.parkshare.app.data.api.ParkingListingDto
 import com.parkshare.app.data.parking.ParkingRepository
 import com.parkshare.app.ui.theme.PrimaryBlue
@@ -51,19 +53,44 @@ fun Homescreen(
     onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onOfferParkingClick: () -> Unit = {},
-    onParkingClick: (String) -> Unit = {}
+    onParkingClick: (String) -> Unit = {},
+    onVerificationRequired: () -> Unit = {}
 ) {
     val parkingRepository = remember { ParkingRepository() }
     var availableListings by remember { mutableStateOf<List<ParkingListingDto>>(emptyList()) }
     var isLoadingListings by remember { mutableStateOf(true) }
+    var userVerificationStatus by remember { mutableStateOf("NOT_SUBMITTED") }
 
     LaunchedEffect(Unit) {
+        try {
+            val verifRes = ApiClient.apiService.getVerificationStatus()
+            if (verifRes.isSuccessful && verifRes.body()?.data != null) {
+                userVerificationStatus = verifRes.body()?.data?.status ?: "NOT_SUBMITTED"
+            }
+        } catch (_: Exception) {}
+
         val result = parkingRepository.searchParking(limit = 2)
         result.onSuccess { list ->
             availableListings = list
             isLoadingListings = false
         }.onFailure {
             isLoadingListings = false
+        }
+    }
+
+    val handleFindParking = {
+        if (userVerificationStatus == "APPROVED") {
+            onSearchClick()
+        } else {
+            onVerificationRequired()
+        }
+    }
+
+    val handleOfferParking = {
+        if (userVerificationStatus == "APPROVED") {
+            onOfferParkingClick()
+        } else {
+            onVerificationRequired()
         }
     }
 
@@ -149,11 +176,77 @@ fun Homescreen(
             }
         }
 
+        if (userVerificationStatus != "APPROVED") {
+            Spacer(modifier = Modifier.height(14.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onVerificationRequired() },
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = when (userVerificationStatus) {
+                        "PENDING" -> Color(0xFFFFFBEB)
+                        "REJECTED" -> Color(0xFFFEF2F2)
+                        else -> Color(0xFFEFF6FF)
+                    }
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = when (userVerificationStatus) {
+                            "PENDING" -> Color(0xFFD97706)
+                            "REJECTED" -> Color(0xFFDC2626)
+                            else -> PrimaryBlue
+                        },
+                        modifier = Modifier.size(24.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = when (userVerificationStatus) {
+                                "PENDING" -> "Verification In Review"
+                                "REJECTED" -> "Verification Rejected"
+                                else -> "Verification Required"
+                            },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Text(
+                            text = when (userVerificationStatus) {
+                                "PENDING" -> "Documents pending review. Tap to check status."
+                                "REJECTED" -> "Tap to resubmit your documents."
+                                else -> "One-time verification needed to find or list parking."
+                            },
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    Text(
+                        text = "View →",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryBlue
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // Search Parking
         Button(
-            onClick = onSearchClick,
+            onClick = handleFindParking,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -192,7 +285,7 @@ fun Homescreen(
             )
 
             TextButton(
-                onClick = onSearchClick
+                onClick = handleFindParking
             ) {
                 Text(
                     text = "See All",
@@ -233,7 +326,7 @@ fun Homescreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onSearchClick() },
+                    .clickable { handleFindParking() },
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
@@ -264,7 +357,13 @@ fun Homescreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onParkingClick(listing.id) },
+                            .clickable {
+                                if (userVerificationStatus == "APPROVED") {
+                                    onParkingClick(listing.id)
+                                } else {
+                                    onVerificationRequired()
+                                }
+                            },
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                     ) {
@@ -326,7 +425,7 @@ fun Homescreen(
 
         // Offer Parking
         Button(
-            onClick = onOfferParkingClick,
+            onClick = handleOfferParking,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),

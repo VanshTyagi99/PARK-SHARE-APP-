@@ -31,6 +31,12 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'admin'],
       default: 'user'
     },
+    verificationStatus: {
+      type: String,
+      enum: ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'],
+      default: 'NOT_SUBMITTED',
+      index: true
+    },
     listingCount: {
       type: Number,
       default: 0,

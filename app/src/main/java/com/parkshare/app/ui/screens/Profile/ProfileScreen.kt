@@ -2,6 +2,7 @@ package com.parkshare.app.ui.screens.Profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,20 +10,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocalParking
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -54,11 +61,15 @@ fun ProfileScreen(
     onOwnerBookingsClick: () -> Unit = {},
     onOfferParkingClick: () -> Unit = {},
     onMyListingsClick: () -> Unit = {},
+    onVerificationStatusClick: () -> Unit = {},
+    onAdminCenterClick: () -> Unit = {},
+    onMessagesClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     val authRepository = remember { AuthRepository() }
     val userEmail = authRepository.getCurrentUserEmail() ?: "Not signed in"
     var userProfile by remember { mutableStateOf<UserProfileResponse?>(null) }
+    var verificationStatus by remember { mutableStateOf("NOT_SUBMITTED") }
 
     LaunchedEffect(Unit) {
         if (authRepository.isUserLoggedIn()) {
@@ -66,6 +77,13 @@ fun ProfileScreen(
                 val response = ApiClient.apiService.getCurrentUser()
                 if (response.isSuccessful && response.body()?.data != null) {
                     userProfile = response.body()?.data
+                }
+            } catch (_: Exception) {}
+
+            try {
+                val verifResponse = ApiClient.apiService.getVerificationStatus()
+                if (verifResponse.isSuccessful && verifResponse.body()?.data != null) {
+                    verificationStatus = verifResponse.body()?.data?.status ?: "NOT_SUBMITTED"
                 }
             } catch (_: Exception) {}
         }
@@ -190,6 +208,105 @@ fun ProfileScreen(
                 }
 
                 Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                // Verification Status Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onVerificationStatusClick() },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = when (verificationStatus) {
+                            "APPROVED" -> Color(0xFFF0FDF4)
+                            "PENDING" -> Color(0xFFFFFBEB)
+                            "REJECTED" -> Color(0xFFFEF2F2)
+                            else -> Color(0xFFEFF6FF)
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = when (verificationStatus) {
+                                "APPROVED" -> Icons.Default.VerifiedUser
+                                else -> Icons.Default.Shield
+                            },
+                            contentDescription = "Verification",
+                            tint = when (verificationStatus) {
+                                "APPROVED" -> SecondaryGreen
+                                "PENDING" -> Color(0xFFD97706)
+                                "REJECTED" -> Color(0xFFDC2626)
+                                else -> PrimaryBlue
+                            },
+                            modifier = Modifier.size(28.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Account Verification",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            when (verificationStatus) {
+                                                "APPROVED" -> Color(0xFFDCFCE7)
+                                                "PENDING" -> Color(0xFFFEF3C7)
+                                                "REJECTED" -> Color(0xFFFEE2E2)
+                                                else -> Color(0xFFDBEAFE)
+                                            },
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = verificationStatus,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = when (verificationStatus) {
+                                            "APPROVED" -> SecondaryGreen
+                                            "PENDING" -> Color(0xFFD97706)
+                                            "REJECTED" -> Color(0xFFDC2626)
+                                            else -> PrimaryBlue
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = when (verificationStatus) {
+                                    "APPROVED" -> "Verified for finding & offering parking"
+                                    "PENDING" -> "Documents under review. Tap to check"
+                                    "REJECTED" -> "Verification rejected. Tap to resubmit"
+                                    else -> "Required to find & offer parking. Tap to verify"
+                                },
+                                fontSize = 12.sp,
+                                color = Color(0xFF475569)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(
                     modifier = Modifier.height(24.dp)
                 )
 
@@ -206,11 +323,41 @@ fun ProfileScreen(
 
             item {
 
+                val isAdmin = userProfile?.role == "admin" ||
+                    userEmail.equals("vanshtyagi7032@gmail.com", ignoreCase = true) ||
+                    userEmail.equals("admin@parkshare.com", ignoreCase = true)
+
+                if (isAdmin) {
+                    ProfileMenuItem(
+                        icon = Icons.Default.AdminPanelSettings,
+                        title = "Admin Dashboard & Operations",
+                        subtitle = "Platform metrics, KYC verification, users & bookings",
+                        onClick = onAdminCenterClick,
+                        iconTint = Color(0xFF7C3AED)
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(10.dp)
+                    )
+                }
+
                 ProfileMenuItem(
                     icon = Icons.Default.Bookmark,
                     title = "My Bookings",
                     subtitle = "View your parking bookings",
                     onClick = onBookingsClick
+                )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.ChatBubbleOutline,
+                    title = "Messages & Support",
+                    subtitle = "Chat with drivers and parking owners",
+                    onClick = onMessagesClick,
+                    iconTint = PrimaryBlue
                 )
 
                 Spacer(
