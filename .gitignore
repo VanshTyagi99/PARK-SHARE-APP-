@@ -14,3 +14,9 @@
 .cxx
 local.properties
 .idea/
+backend/.env
+backend/.env.local
+backend/node_modules/
+backend/config/*.json
+!backend/package.json
+!backend/package-lock.json

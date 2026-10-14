@@ -12,16 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.parkshare.app.data.auth.AuthRepository
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
-    onSplashFinished: () -> Unit
+    onSplashFinished: (isLoggedIn: Boolean) -> Unit
 ) {
+    val authRepository = AuthRepository()
 
     LaunchedEffect(Unit) {
-        delay(2000)
-        onSplashFinished()
+        delay(1500)
+        onSplashFinished(authRepository.isUserLoggedIn())
     }
 
     Column(
@@ -31,7 +33,6 @@ fun SplashScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-
         Text(
             text = "ParkShare",
             fontSize = 36.sp,

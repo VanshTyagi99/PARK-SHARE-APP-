@@ -39,9 +39,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,17 +51,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parkshare.app.data.api.CreateParkingRequest
+import com.parkshare.app.data.api.UpdateParkingRequest
+import com.parkshare.app.data.parking.ParkingRepository
 import com.parkshare.app.ui.theme.PrimaryBlue
 import com.parkshare.app.ui.theme.SecondaryGreen
-
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfferParkingScreen(
     onBackClick: () -> Unit = {},
     onSubmitClick: () -> Unit = {},
-    onAddPhotoClick: () -> Unit = {}
+    onAddPhotoClick: () -> Unit = {},
+    listingId: String? = null
 ) {
+    val parkingRepository = remember { ParkingRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
+    var isLoadingListing by remember { mutableStateOf(false) }
+    var description by remember { mutableStateOf("") }
 
     var parkingTitle by remember {
         mutableStateOf("")
@@ -115,6 +126,30 @@ fun OfferParkingScreen(
         selectedPhotos = uris.take(3)
     }
 
+    LaunchedEffect(listingId) {
+        if (!listingId.isNullOrBlank()) {
+            isLoadingListing = true
+            val result = parkingRepository.getParkingDetails(listingId)
+            result.onSuccess { listing ->
+                parkingTitle = listing.title
+                address = listing.address
+                description = listing.description ?: ""
+                parkingType = listing.parkingType
+                pricePerHour = if (listing.pricePerHour % 1.0 == 0.0) {
+                    listing.pricePerHour.toInt().toString()
+                } else {
+                    listing.pricePerHour.toString()
+                }
+                availableFrom = listing.availableFrom
+                availableUntil = listing.availableUntil
+            }.onFailure { error ->
+                showError = true
+                errorMessage = error.message ?: "Failed to load listing details"
+            }
+            isLoadingListing = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -141,7 +176,7 @@ fun OfferParkingScreen(
             }
 
             Text(
-                text = "Offer Parking",
+                text = if (listingId.isNullOrBlank()) "Offer Parking" else "Edit Listing",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = PrimaryBlue
@@ -153,7 +188,7 @@ fun OfferParkingScreen(
         )
 
         Text(
-            text = "List Your Parking Space",
+            text = if (listingId.isNullOrBlank()) "List Your Parking Space" else "Edit Your Parking Space",
             fontSize = 25.sp,
             fontWeight = FontWeight.Bold
         )
@@ -466,8 +501,16 @@ fun OfferParkingScreen(
             }
         }
 
+        // Prototype note below photos card
+        Text(
+            text = "Note: Photo upload is in prototype preview mode. Images will be permanently persisted in an upcoming cloud storage update.",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(top = 6.dp, start = 4.dp)
+        )
+
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier = Modifier.height(24.dp)
         )
 
         if (showError) {
@@ -487,21 +530,22 @@ fun OfferParkingScreen(
 
         // Submit
         Button(
+            enabled = !isSubmitting && !isLoadingListing,
             onClick = {
-
+                val priceVal = pricePerHour.trim().toDoubleOrNull()
                 when {
-                    parkingTitle.isBlank() -> {
-                        errorMessage = "Please enter parking title"
+                    parkingTitle.trim().length < 3 -> {
+                        errorMessage = "Please enter parking title (at least 3 characters)"
                         showError = true
                     }
 
-                    address.isBlank() -> {
-                        errorMessage = "Please enter parking address"
+                    address.trim().length < 3 -> {
+                        errorMessage = "Please enter parking address (at least 3 characters)"
                         showError = true
                     }
 
-                    pricePerHour.isBlank() -> {
-                        errorMessage = "Please enter price per hour"
+                    priceVal == null || priceVal <= 0 -> {
+                        errorMessage = "Please enter a valid price per hour greater than zero"
                         showError = true
                     }
 
@@ -517,7 +561,48 @@ fun OfferParkingScreen(
 
                     else -> {
                         showError = false
-                        onSubmitClick()
+                        isSubmitting = true
+                        coroutineScope.launch {
+                            if (listingId.isNullOrBlank()) {
+                                val req = CreateParkingRequest(
+                                    title = parkingTitle.trim(),
+                                    address = address.trim(),
+                                    description = description.trim(),
+                                    parkingType = parkingType,
+                                    pricePerHour = priceVal,
+                                    availableFrom = availableFrom.trim(),
+                                    availableUntil = availableUntil.trim()
+                                )
+                                val result = parkingRepository.createParking(req)
+                                result.onSuccess {
+                                    isSubmitting = false
+                                    onSubmitClick()
+                                }.onFailure { err ->
+                                    isSubmitting = false
+                                    showError = true
+                                    errorMessage = err.message ?: "Failed to list parking"
+                                }
+                            } else {
+                                val req = UpdateParkingRequest(
+                                    title = parkingTitle.trim(),
+                                    address = address.trim(),
+                                    description = description.trim(),
+                                    parkingType = parkingType,
+                                    pricePerHour = priceVal,
+                                    availableFrom = availableFrom.trim(),
+                                    availableUntil = availableUntil.trim()
+                                )
+                                val result = parkingRepository.updateParking(listingId, req)
+                                result.onSuccess {
+                                    isSubmitting = false
+                                    onSubmitClick()
+                                }.onFailure { err ->
+                                    isSubmitting = false
+                                    showError = true
+                                    errorMessage = err.message ?: "Failed to update listing"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -531,7 +616,11 @@ fun OfferParkingScreen(
         ) {
 
             Text(
-                text = "List Parking Space",
+                text = if (isSubmitting) {
+                    if (listingId.isNullOrBlank()) "Listing Space..." else "Updating Space..."
+                } else {
+                    if (listingId.isNullOrBlank()) "List Parking Space" else "Save Changes"
+                },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )

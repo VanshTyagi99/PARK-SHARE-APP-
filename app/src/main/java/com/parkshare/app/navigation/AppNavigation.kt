@@ -13,12 +13,15 @@ import com.parkshare.app.ui.screens.MyBookings.MyBookingsScreen
 import com.parkshare.app.ui.screens.Profile.ProfileScreen
 import com.parkshare.app.ui.screens.OfferParking.OfferParkingScreen
 import com.parkshare.app.ui.screens.ParkingSubmitted.ParkingSubmittedScreen
-
+import com.parkshare.app.ui.screens.MyListings.MyListingsScreen
+import com.parkshare.app.ui.screens.OwnerBookings.OwnerBookingsScreen
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 
 @Composable
 fun AppNavigation() {
@@ -32,8 +35,9 @@ fun AppNavigation() {
 
         composable(AppRoute.Splash.route) {
             SplashScreen(
-                onSplashFinished = {
-                    navController.navigate(AppRoute.Onboarding.route) {
+                onSplashFinished = { isLoggedIn ->
+                    val destination = if (isLoggedIn) AppRoute.Home.route else AppRoute.Onboarding.route
+                    navController.navigate(destination) {
                         popUpTo(AppRoute.Splash.route) {
                             inclusive = true
                         }
@@ -87,9 +91,11 @@ fun AppNavigation() {
                 onProfileClick = {
                     navController.navigate(AppRoute.Profile.route)
                 },
-
-                        onOfferParkingClick = {
+                onOfferParkingClick = {
                     navController.navigate(AppRoute.OfferParking.route)
+                },
+                onParkingClick = { listingId ->
+                    navController.navigate(AppRoute.ParkingDetails.createRoute(listingId))
                 }
             )
         }
@@ -100,43 +106,51 @@ fun AppNavigation() {
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onParkingClick = {
-                    navController.navigate(AppRoute.ParkingDetails.route)
+                onParkingClick = { listingId ->
+                    navController.navigate(AppRoute.ParkingDetails.createRoute(listingId))
                 }
             )
         }
 
-
-
-        composable(AppRoute.ParkingDetails.route) {
-
+        composable(
+            route = AppRoute.ParkingDetails.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId")
             ParkingDetailsScreen(
+                listingId = listingId,
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onBookClick = {
-                    navController.navigate(AppRoute.Booking.route)
+                onBookClick = { id ->
+                    navController.navigate(AppRoute.Booking.createRoute(id))
                 }
             )
         }
 
-
-        composable(AppRoute.Booking.route) {
-
+        composable(
+            route = AppRoute.Booking.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId")
             BookingScreen(
+                listingId = listingId,
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onConfirmBooking = {
-                    navController.navigate(AppRoute.BookingConfirmation.route)
+                onConfirmBooking = { bookingId ->
+                    navController.navigate(AppRoute.BookingConfirmation.createRoute(bookingId))
                 }
             )
         }
 
-
-        composable(AppRoute.BookingConfirmation.route) {
-
+        composable(
+            route = AppRoute.BookingConfirmation.route,
+            arguments = listOf(navArgument("bookingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId")
             BookingConfirmationScreen(
+                bookingId = bookingId,
                 onViewBookingsClick = {
                     navController.navigate(AppRoute.MyBookings.route)
                 },
@@ -151,7 +165,6 @@ fun AppNavigation() {
         }
 
         composable(AppRoute.MyBookings.route) {
-
             MyBookingsScreen(
                 onBackClick = {
                     navController.popBackStack()
@@ -159,11 +172,15 @@ fun AppNavigation() {
             )
         }
 
-
-
+        composable(AppRoute.OwnerBookings.route) {
+            OwnerBookingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
 
         composable(AppRoute.Profile.route) {
-
             ProfileScreen(
                 onBackClick = {
                     navController.popBackStack()
@@ -171,15 +188,51 @@ fun AppNavigation() {
                 onBookingsClick = {
                     navController.navigate(AppRoute.MyBookings.route)
                 },
+                onOwnerBookingsClick = {
+                    navController.navigate(AppRoute.OwnerBookings.route)
+                },
                 onOfferParkingClick = {
                     navController.navigate(AppRoute.OfferParking.route)
                 },
+                onMyListingsClick = {
+                    navController.navigate(AppRoute.MyListings.route)
+                },
                 onLogoutClick = {
                     navController.navigate(AppRoute.Login.route) {
-                        popUpTo(AppRoute.Home.route) {
+                        popUpTo(0) {
                             inclusive = true
                         }
                     }
+                }
+            )
+        }
+
+        composable(AppRoute.MyListings.route) {
+            MyListingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onAddNewClick = {
+                    navController.navigate(AppRoute.OfferParking.route)
+                },
+                onEditClick = { listingId ->
+                    navController.navigate(AppRoute.EditParking.createRoute(listingId))
+                }
+            )
+        }
+
+        composable(
+            route = AppRoute.EditParking.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId")
+            OfferParkingScreen(
+                listingId = listingId,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onSubmitClick = {
+                    navController.popBackStack()
                 }
             )
         }

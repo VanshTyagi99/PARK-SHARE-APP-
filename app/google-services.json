@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "54162612898",
+    "project_id": "parkshare-537b9",
+    "storage_bucket": "parkshare-537b9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:54162612898:android:255b55c7aad7c8dff7edfb",
+        "android_client_info": {
+          "package_name": "com.parkshare.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoue-h4gylMZltZxI_nB2OIiQj0ETbZ50"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

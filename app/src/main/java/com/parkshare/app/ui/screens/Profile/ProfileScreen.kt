@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocalParking
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,6 +29,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +41,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parkshare.app.data.api.ApiClient
+import com.parkshare.app.data.api.UserProfileResponse
+import com.parkshare.app.data.auth.AuthRepository
 import com.parkshare.app.ui.theme.PrimaryBlue
 import com.parkshare.app.ui.theme.SecondaryGreen
 
@@ -42,9 +51,26 @@ import com.parkshare.app.ui.theme.SecondaryGreen
 fun ProfileScreen(
     onBackClick: () -> Unit = {},
     onBookingsClick: () -> Unit = {},
+    onOwnerBookingsClick: () -> Unit = {},
     onOfferParkingClick: () -> Unit = {},
+    onMyListingsClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
+    val authRepository = remember { AuthRepository() }
+    val userEmail = authRepository.getCurrentUserEmail() ?: "Not signed in"
+    var userProfile by remember { mutableStateOf<UserProfileResponse?>(null) }
+
+    LaunchedEffect(Unit) {
+        if (authRepository.isUserLoggedIn()) {
+            try {
+                val response = ApiClient.apiService.getCurrentUser()
+                if (response.isSuccessful && response.body()?.data != null) {
+                    userProfile = response.body()?.data
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
 
     Column(
         modifier = Modifier
@@ -104,6 +130,12 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
 
+                        val displayName = userProfile?.fullName?.ifBlank { null }
+                            ?: userEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
+                        val initial = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+                        val displayEmail = userProfile?.email ?: userEmail
+                        val displayPhone = userProfile?.phone?.ifBlank { null } ?: "Member"
+
                         // Profile Circle
                         Column(
                             modifier = Modifier
@@ -115,7 +147,7 @@ fun ProfileScreen(
                         ) {
 
                             Text(
-                                text = "V",
+                                text = initial,
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -129,7 +161,7 @@ fun ProfileScreen(
                         Column {
 
                             Text(
-                                text = "Vansh Tyagi",
+                                text = displayName,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -139,7 +171,7 @@ fun ProfileScreen(
                             )
 
                             Text(
-                                text = "vansh@example.com",
+                                text = displayEmail,
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
@@ -149,7 +181,7 @@ fun ProfileScreen(
                             )
 
                             Text(
-                                text = "+91 98765 43210",
+                                text = displayPhone,
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
@@ -190,6 +222,28 @@ fun ProfileScreen(
                     title = "Offer Parking",
                     subtitle = "List your parking space",
                     onClick = onOfferParkingClick
+                )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.DirectionsCar,
+                    title = "My Listings",
+                    subtitle = "Manage your parking spaces",
+                    onClick = onMyListingsClick
+                )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.ReceiptLong,
+                    title = "Owner Booking Requests",
+                    subtitle = "Review and accept driver reservations",
+                    onClick = onOwnerBookingsClick
                 )
 
                 Spacer(
@@ -243,7 +297,10 @@ fun ProfileScreen(
                     icon = Icons.Default.Logout,
                     title = "Logout",
                     subtitle = "Sign out of your account",
-                    onClick = onLogoutClick,
+                    onClick = {
+                        authRepository.logout()
+                        onLogoutClick()
+                    },
                     iconTint = Color.Red
                 )
             }

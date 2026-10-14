@@ -1,0 +1,33 @@
+{
+  "name": "parkshare-backend",
+  "version": "1.0.0",
+  "description": "ParkShare Peer-to-Peer Parking Backend Service",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/health.test.js && node test/parking.test.js && node test/search.test.js && node test/booking_model.test.js && node test/booking_api.test.js",
+    "test:booking:unit": "node test/booking_model.test.js",
+    "test:booking:api": "node test/booking_api.test.js",
+    "test:booking:atlas": "node test/booking_lifecycle_atlas.test.js",
+    "test:booking:concurrency": "node test/booking_concurrency_atlas.test.js",
+    "test:booking:checkin": "node test/booking_checkin_checkout.test.js",
+    "test:booking:all": "node test/booking_model.test.js && node test/booking_api.test.js && node test/booking_lifecycle_atlas.test.js && node test/booking_concurrency_atlas.test.js && node test/booking_checkin_checkout.test.js",
+    "test:acceptance": "node test/acceptance_search.js",
+    "verify:atlas": "node test/atlas.test.js",
+    "seed": "node scripts/seedDemoParking.js",
+    "audit:demo": "node scripts/auditDemoData.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.1.0",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

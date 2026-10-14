@@ -14,20 +14,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parkshare.app.data.api.ApiClient
+import com.parkshare.app.data.api.SyncUserRequest
+import com.parkshare.app.data.auth.AuthRepository
 import com.parkshare.app.ui.components.buttons.PrimaryButton
+import kotlinx.coroutines.launch
 
 @Composable
 fun Signupscreen(
     onSignup: () -> Unit,
     onLogin: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
 
     var name by remember {
         mutableStateOf("")
@@ -43,6 +51,18 @@ fun Signupscreen(
 
     var confirmPassword by remember {
         mutableStateOf("")
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
+
+    val authRepository = remember {
+        AuthRepository()
     }
 
     Column(
@@ -76,6 +96,7 @@ fun Signupscreen(
             value = name,
             onValueChange = {
                 name = it
+                errorMessage = ""
             },
             label = {
                 Text("Full Name")
@@ -91,6 +112,7 @@ fun Signupscreen(
             value = email,
             onValueChange = {
                 email = it
+                errorMessage = ""
             },
             label = {
                 Text("Email")
@@ -106,6 +128,7 @@ fun Signupscreen(
             value = password,
             onValueChange = {
                 password = it
+                errorMessage = ""
             },
             label = {
                 Text("Password")
@@ -122,6 +145,7 @@ fun Signupscreen(
             value = confirmPassword,
             onValueChange = {
                 confirmPassword = it
+                errorMessage = ""
             },
             label = {
                 Text("Confirm Password")
@@ -131,12 +155,89 @@ fun Signupscreen(
             visualTransformation = PasswordVisualTransformation()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Signup Button
+        // Error Message
+        if (errorMessage.isNotEmpty()) {
+            Text(
+                text = errorMessage,
+                color = Color.Red,
+                fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Create Account Button
         PrimaryButton(
-            text = "Create Account",
-            onClick = onSignup
+            text = if (isLoading) {
+                "Creating Account..."
+            } else {
+                "Create Account"
+            },
+            onClick = {
+
+                when {
+                    name.isBlank() -> {
+                        errorMessage = "Please enter your full name"
+                    }
+
+                    email.isBlank() -> {
+                        errorMessage = "Please enter your email"
+                    }
+
+                    !android.util.Patterns.EMAIL_ADDRESS
+                        .matcher(email.trim())
+                        .matches() -> {
+                        errorMessage = "Please enter a valid email"
+                    }
+
+                    password.isBlank() -> {
+                        errorMessage = "Please enter a password"
+                    }
+
+                    password.length < 6 -> {
+                        errorMessage = "Password must be at least 6 characters"
+                    }
+
+                    confirmPassword.isBlank() -> {
+                        errorMessage = "Please confirm your password"
+                    }
+
+                    password != confirmPassword -> {
+                        errorMessage = "Passwords do not match"
+                    }
+
+                    else -> {
+
+                        isLoading = true
+                        errorMessage = ""
+
+                        authRepository.signUp(
+                            email = email.trim(),
+                            password = password,
+
+                            onSuccess = {
+                                coroutineScope.launch {
+                                    try {
+                                        ApiClient.apiService.syncUser(
+                                            SyncUserRequest(fullName = name.trim())
+                                        )
+                                    } catch (_: Exception) {}
+                                    isLoading = false
+                                    onSignup()
+                                }
+                            },
+
+                            onError = { error ->
+                                isLoading = false
+                                errorMessage = error
+                            }
+                        )
+                    }
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
